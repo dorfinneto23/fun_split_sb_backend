@@ -103,7 +103,7 @@ def split_pdf_pages(caseid,file_name):
         path = f"{basicPath}/source/{file_name}"
         logging.info(f"full path is : {path}")
         blob_client = container_client.get_blob_client(path)
-        #check if file Exists
+        #check if file Existss
         fileExist = blob_client.exists()
         logging.info(f"fileExist value is: {fileExist}")
         if fileExist==False:
