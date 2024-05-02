@@ -39,6 +39,32 @@ def update_case_generic(caseid,field,value):
         logging.error(f"Error update case: {str(e)}")
         return False    
 
+# Insert files into table "documents"
+def insert_documents(caseid,filename,status,path,url):
+    try:
+        # Establish a connection to the Azure SQL database
+        conn = pyodbc.connect('DRIVER='+driver+';SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+        cursor = conn.cursor()
+
+        # Insert new doc data into the 'documents' table
+        cursor.execute(f"INSERT INTO documents (caseid, fileName, status, path, url) VALUES (?, ?, ?, ?, ?)", (caseid, filename, status, path,url))
+
+        conn.commit()
+
+        # Get the ID of the last inserted row
+        cursor.execute("SELECT @@IDENTITY AS 'Identity';")
+        doc_id = cursor.fetchone()[0]
+
+        # Close connections
+        cursor.close()
+        conn.close()
+        
+        logging.info(f"insert New Documnets successfully, documents id is:  {doc_id} , caseid is : {caseid}")
+        return True
+    except Exception as e:
+        logging.error(f"Error update case: {str(e)}")
+        return False      
+
 #function split pdf into pages 
 def split_pdf_pages(caseid,file_name):
     try:
@@ -78,8 +104,10 @@ def split_pdf_pages(caseid,file_name):
             page_bytes = io.BytesIO()
             writer.write(page_bytes)
             page_bytes.seek(0)
-            Destination_path=f"{baseDestination_path}/page_{i+1}.pdf"
-            container_client.upload_blob(name=Destination_path, data=page_bytes.read())
+            newFileName = f"page_{i+1}.pdf"
+            Destination_path=f"{baseDestination_path}/{newFileName}"
+            blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
+            insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
         logging.info(f"split_pdf_pages process: succeeded")
         data = { 
             "status" : "succeeded", 
