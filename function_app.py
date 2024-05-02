@@ -6,9 +6,13 @@ from PyPDF2 import PdfReader,PdfWriter  # in order to read and write  pdf file
 import io # in order to download pdf to memory and write into memory without disk permission needed 
 import json # in order to use json 
 import pyodbc #for sql connections 
+from azure.servicebus import ServiceBusClient, ServiceBusMessage # in order to use azure service bus 
 
 # Azure Blob Storage connection string
 connection_string_blob = os.environ.get('BlobStorageConnString')
+
+#Azure service bus connection string 
+connection_string_servicebus = os.environ.get('servicebusConnectionString')
 
 # Define connection details
 server = 'medicalanalysis-sqlserver.database.windows.net'
@@ -64,6 +68,27 @@ def insert_documents(caseid,filename,status,path,url):
     except Exception as e:
         logging.error(f"Error update case: {str(e)}")
         return False      
+    
+#Create event on azure service bus 
+def create_servicebus_event(queue_name, event_data):
+    try:
+        # Create a ServiceBusClient using the connection string
+        servicebus_client = ServiceBusClient.from_connection_string(connection_string_servicebus)
+
+        # Create a sender for the queue
+        sender = servicebus_client.get_queue_sender(queue_name)
+
+        with sender:
+            # Create a ServiceBusMessage object with the event data
+            message = ServiceBusMessage(event_data)
+
+            # Send the message to the queue
+            sender.send_messages(message)
+
+        print("Event created successfully.")
+    
+    except Exception as e:
+        print("An error occurred:", str(e))
 
 #function split pdf into pages 
 def split_pdf_pages(caseid,file_name):
@@ -108,6 +133,15 @@ def split_pdf_pages(caseid,file_name):
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
             insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            #preparing data for service bus 
+            data = { 
+                "caseid" : caseid, 
+                "filename" :newFileName,
+                "path" :Destination_path,
+                "url" :blob_client.url
+            } 
+            json_data = json.dumps(data)
+            create_servicebus_event("ocr",json_data)
         logging.info(f"split_pdf_pages process: succeeded")
         data = { 
             "status" : "succeeded", 
@@ -136,6 +170,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     if split_status =="succeeded":
         #update case status to file split
         update_case_generic(caseid,"status",4) 
+        
         logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
     else: 
         logging.info(f"split status is: {split_status}")
