@@ -64,10 +64,10 @@ def insert_documents(caseid,filename,status,path,url):
         conn.close()
         
         logging.info(f"insert New Documnets successfully, documents id is:  {doc_id} , caseid is : {caseid}")
-        return True
+        return doc_id
     except Exception as e:
         logging.error(f"Error update case: {str(e)}")
-        return False      
+        return "error"      
     
 #Create event on azure service bus 
 def create_servicebus_event(queue_name, event_data):
@@ -132,13 +132,14 @@ def split_pdf_pages(caseid,file_name):
             newFileName = f"page_{i+1}.pdf"
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
-            insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
             #preparing data for service bus 
             data = { 
                 "caseid" : caseid, 
                 "filename" :newFileName,
                 "path" :Destination_path,
-                "url" :blob_client.url
+                "url" :blob_client.url,
+                "doc_id" :doc_id
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
