@@ -132,13 +132,15 @@ def split_pdf_pages(caseid,file_name):
             newFileName = f"page_{i+1}.pdf"
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
-            insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            doc_id_int = int(doc_id)
             #preparing data for service bus 
             data = { 
                 "caseid" : caseid, 
                 "filename" :newFileName,
                 "path" :Destination_path,
-                "url" :blob_client.url
+                "url" :blob_client.url,
+                "docid" :doc_id_int
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
@@ -152,7 +154,15 @@ def split_pdf_pages(caseid,file_name):
         json_data = json.dumps(data)
         return json_data
     except Exception as e:
-        return str(e)
+        data = { 
+            "status" : "Failure", 
+            "pages_num" : num_pages,
+            "Description" : str(e)
+        } 
+        json_data = json.dumps(data)
+        logging.info(f"error : {json_data}")
+        return json_data
+
     
 app = func.FunctionApp()
 
