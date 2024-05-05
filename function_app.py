@@ -7,6 +7,8 @@ import io # in order to download pdf to memory and write into memory without dis
 import json # in order to use json 
 import pyodbc #for sql connections 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage # in order to use azure service bus 
+import uuid #using for creating unique name to files 
+
 
 # Azure Blob Storage connection string
 connection_string_blob = os.environ.get('BlobStorageConnString')
@@ -129,7 +131,7 @@ def split_pdf_pages(caseid,file_name):
             page_bytes = io.BytesIO()
             writer.write(page_bytes)
             page_bytes.seek(0)
-            newFileName = f"page_{i+1}.pdf"
+            newFileName = f"page_{uuid.uuid4().hex}_{i+1}.pdf" 
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
             doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 

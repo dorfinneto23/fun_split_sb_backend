@@ -7,3 +7,4 @@ azure.storage.blob
 PyPDF2
 pyodbc
 azure.servicebus
+uuid
