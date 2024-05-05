@@ -67,7 +67,7 @@ def insert_documents(caseid,filename,status,path,url):
         return doc_id
     except Exception as e:
         logging.error(f"Error update case: {str(e)}")
-        return "error"      
+        return 0     
     
 #Create event on azure service bus 
 def create_servicebus_event(queue_name, event_data):
@@ -143,6 +143,7 @@ def split_pdf_pages(caseid,file_name):
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
+            logging.info(f"split number {i} sucess, data is : {json_data}")
         logging.info(f"split_pdf_pages process: succeeded")
         data = { 
             "status" : "succeeded", 
