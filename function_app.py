@@ -63,7 +63,7 @@ def insert_documents(caseid,filename,status,path,url):
         cursor.close()
         conn.close()
         
-        logging.info(f"insert New Documnets successfully, documents id is:  {doc_id} , caseid is : {caseid}")
+        logging.info(f"insert New Documnets successfully, documents id is:{doc_id} ,caseid is:{caseid}")
         return doc_id
     except Exception as e:
         logging.error(f"Error update case: {str(e)}")
@@ -132,14 +132,13 @@ def split_pdf_pages(caseid,file_name):
             newFileName = f"page_{i+1}.pdf"
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
-            doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
             #preparing data for service bus 
             data = { 
                 "caseid" : caseid, 
                 "filename" :newFileName,
                 "path" :Destination_path,
-                "url" :blob_client.url,
-                "doc_id" :doc_id
+                "url" :blob_client.url
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
