@@ -25,14 +25,14 @@ driver= '{ODBC Driver 18 for SQL Server}'
 
 
 # Generic Function to update case  in the 'cases' table
-def update_case_generic(caseid,field,value):
+def update_case_generic(caseid,field,value,field2,value2):
     try:
         # Establish a connection to the Azure SQL database
         conn = pyodbc.connect('DRIVER='+driver+';SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
         cursor = conn.cursor()
 
         # Insert new case data into the 'cases' table
-        cursor.execute(f"UPDATE cases SET {field} = ? WHERE id = ?", (value, caseid))
+        cursor.execute(f"UPDATE cases SET {field} = ? ,{field2} = ? WHERE id = ?", (value,value2 , caseid))
         conn.commit()
 
         # Close connections
@@ -182,7 +182,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     split_pages = splitResult_dic['pages_num']
     if split_status =="succeeded":
         #update case status to file split
-        update_case_generic(caseid,"status",4) 
+        update_case_generic(caseid,"status",4,"totalpages",split_pages) 
         
         logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
     else: 
