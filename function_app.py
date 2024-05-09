@@ -146,7 +146,8 @@ def split_pdf_pages(caseid,file_name):
                 "path" :Destination_path,
                 "url" :blob_client.url,
                 "docid" :doc_id_int,
-                "pagenumber" :i+1
+                "pagenumber" :i+1,
+                "pages_num" :num_pages
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
