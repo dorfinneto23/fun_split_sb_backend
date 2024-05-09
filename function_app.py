@@ -212,16 +212,20 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     file_name = message_data_dict['filename']
     duplicateStatus =  check_duplicate_request(caseid)
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
-    splitResult = split_pdf_pages(caseid,file_name)
-    splitResult_dic = json.loads(splitResult)
-    split_status = splitResult_dic['status']
-    split_pages = splitResult_dic['pages_num']
-    lastpage = splitResult_dic['LastPage']
-    if split_status =="succeeded" and lastpage==split_pages:
-        #update case status to file split
-        update_case_generic(caseid,"status",4,"totalpages",split_pages) 
-        
-        logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
-    else: 
-        logging.info(f"split status is: {split_status}")
+    if duplicateStatus==False  :
+        splitResult = split_pdf_pages(caseid,file_name)
+        splitResult_dic = json.loads(splitResult)
+        split_status = splitResult_dic['status']
+        split_pages = splitResult_dic['pages_num']
+        lastpage = splitResult_dic['LastPage']
+        if split_status =="succeeded" and lastpage==split_pages:
+            #update case status to file split
+            update_case_generic(caseid,"status",4,"totalpages",split_pages) 
+            
+            logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
+        else: 
+            logging.info(f"split status is: {split_status}")
+    else:
+        logging.info(f"duplicate Status is True - means the process already made")
+
 
