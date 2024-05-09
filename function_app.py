@@ -24,6 +24,32 @@ password = os.environ.get('sql_password')
 driver= '{ODBC Driver 18 for SQL Server}'
 
 
+
+#  Function checks if this is a duplicate request for split operation 
+def check_duplicate_request(caseid):
+    try:
+        logging.info(f"starting check_duplicate_request")
+        container_name = "medicalanalysis"
+        main_folder_name = "cases"
+        folder_name="case-"+caseid
+        blob_service_client = BlobServiceClient.from_connection_string(connection_string_blob)
+        container_client = blob_service_client.get_container_client(container_name)
+        basicPath = f"{main_folder_name}/{folder_name}"
+        directory_path = f"{basicPath}/source/split"
+        # List blobs in the specified directory
+        blobs = container_client.list_blobs(name_starts_with=directory_path)
+        # Count the number of files in the directory
+        file_count = sum(1 for _ in blobs)
+        logging.info(f"check_duplicate_request, total files in the path: {directory_path}, is: {file_count}")
+        if file_count>0:
+           return True
+        return False 
+    except Exception as e:
+        logging.error(f"Error update case: {str(e)}")
+        return True    
+
+
+
 # Generic Function to update case  in the 'cases' table
 def update_case_generic(caseid,field,value,field2,value2):
     try:
@@ -105,7 +131,7 @@ def split_pdf_pages(caseid,file_name):
         path = f"{basicPath}/source/{file_name}"
         logging.info(f"full path is : {path}")
         blob_client = container_client.get_blob_client(path)
-        #check if file Existss
+        #check if main source file Existss
         fileExist = blob_client.exists()
         logging.info(f"fileExist value is: {fileExist}")
         if fileExist==False:
@@ -183,6 +209,8 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     message_data_dict = json.loads(message_data)
     caseid = message_data_dict['caseid']
     file_name = message_data_dict['filename']
+    duplicateStatus =  check_duplicate_request(caseid)
+    logging.info(f"duplicateStatus check is : {duplicateStatus}")
     splitResult = split_pdf_pages(caseid,file_name)
     splitResult_dic = json.loads(splitResult)
     split_status = splitResult_dic['status']
