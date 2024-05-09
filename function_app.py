@@ -123,6 +123,8 @@ def split_pdf_pages(caseid,file_name):
         # Create directory if it doesn't exist
         baseDestination_path = f"{basicPath}/source/split"
         logging.info(f"destination_path value is: {baseDestination_path}")
+        #initial value 
+        lastpage = 0
         # Save each page as a separate file
         for i, page in enumerate(pdf_reader.pages):
             writer = PdfWriter()
@@ -136,13 +138,15 @@ def split_pdf_pages(caseid,file_name):
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
             doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
             doc_id_int = int(doc_id)
+            lastpage = i+1
             #preparing data for service bus 
             data = { 
                 "caseid" : caseid, 
                 "filename" :newFileName,
                 "path" :Destination_path,
                 "url" :blob_client.url,
-                "docid" :doc_id_int
+                "docid" :doc_id_int,
+                "pagenumber" :i+1
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
@@ -151,6 +155,7 @@ def split_pdf_pages(caseid,file_name):
         data = { 
             "status" : "succeeded", 
             "pages_num" : num_pages,
+            "LastPage" :lastpage,
             "Description" : f"split_pdf_pages process: succeeded ,Total Pages:{num_pages}" 
         } 
         json_data = json.dumps(data)
@@ -159,6 +164,7 @@ def split_pdf_pages(caseid,file_name):
         data = { 
             "status" : "Failure", 
             "pages_num" : num_pages,
+            "LastPage" :lastpage,
             "Description" : str(e)
         } 
         json_data = json.dumps(data)
@@ -180,7 +186,8 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     splitResult_dic = json.loads(splitResult)
     split_status = splitResult_dic['status']
     split_pages = splitResult_dic['pages_num']
-    if split_status =="succeeded":
+    lastpage = splitResult_dic['LastPage']
+    if split_status =="succeeded" and lastpage==split_pages:
         #update case status to file split
         update_case_generic(caseid,"status",4,"totalpages",split_pages) 
         
