@@ -28,7 +28,6 @@ driver= '{ODBC Driver 18 for SQL Server}'
 #  Function checks if this is a duplicate request for split operation 
 def check_duplicate_request(caseid):
     try:
-        testpath = "cases/case-16/source/split"
         logging.info(f"starting check_duplicate_request")
         container_name = "medicalanalysis"
         main_folder_name = "cases"
@@ -38,7 +37,7 @@ def check_duplicate_request(caseid):
         basicPath = f"{main_folder_name}/{folder_name}"
         directory_path = f"{basicPath}/source/split"
         # List blobs in the specified directory
-        blobs = container_client.list_blobs(name_starts_with=testpath)
+        blobs = container_client.list_blobs(name_starts_with=directory_path)
         # Count the number of files in the directory
         file_count = sum(1 for _ in blobs)
         logging.info(f"check_duplicate_request, total files in the path: {directory_path}, is: {file_count}")
