@@ -195,7 +195,8 @@ def split_pdf_pages(caseid,file_name):
             # preparing data before inserting to azure storage table 
             entity = {
                 'PartitionKey': caseid,
-                'RowKey': baseFileName
+                'RowKey': baseFileName,
+                'caseid':caseid
              }
             add_row_to_storage_table("documents",entity)
             #insert data into sql server - need to delete 
