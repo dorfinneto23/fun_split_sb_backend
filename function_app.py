@@ -14,7 +14,6 @@ from azure.core.exceptions import ResourceExistsError # in order to use azure st
 
 # Azure Blob Storage connection string & key 
 connection_string_blob = os.environ.get('BlobStorageConnString')
-storageAccountKey = os.environ.get('storageAccountKey')
 #Azure service bus connection string 
 connection_string_servicebus = os.environ.get('servicebusConnectionString')
 
@@ -39,14 +38,9 @@ def add_row_to_storage_table(table_name, entity):
     - table_name: str, the name of the table
     - entity: dict, the entity to add (must contain 'PartitionKey' and 'RowKey')
     """
-    account_key = storageAccountKey
-    account_name = "medicalanalysis"
     try:
-        # Create a TableServiceClient
-        table_service_client = TableServiceClient(
-            endpoint=f"https://{account_name}.table.core.windows.net",
-            credential=account_key
-        )
+        # Create a TableServiceClient using the connection string
+        table_service_client = TableServiceClient.from_connection_string(conn_str=connection_string_blob)
         logging.info(f"add_row_to_storage_table function :Create a TableServiceClient")
         # Get a TableClient
         table_client = table_service_client.get_table_client(table_name)
