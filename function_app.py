@@ -196,7 +196,12 @@ def split_pdf_pages(caseid,file_name):
             entity = {
                 'PartitionKey': caseid,
                 'RowKey': baseFileName,
-                'caseid':caseid
+                'caseid':caseid,
+                'fileName' :newFileName,
+                'pageNumber' :i+1,
+                'status' :1,
+                'path' :Destination_path,
+                'url' :blob_client.url,
              }
             add_row_to_storage_table("documents",entity)
             #insert data into sql server - need to delete 
