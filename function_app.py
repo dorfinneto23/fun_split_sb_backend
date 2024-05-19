@@ -47,18 +47,17 @@ def add_row_to_storage_table(table_name, entity):
             endpoint=f"https://{account_name}.table.core.windows.net",
             credential=account_key
         )
-
+        logging.info(f"add_row_to_storage_table function :Create a TableServiceClient")
         # Get a TableClient
         table_client = table_service_client.get_table_client(table_name)
-
+        logging.info(f"add_row_to_storage_table function :TableClient")
         # Add the entity to the table
         table_client.create_entity(entity=entity)
-        print("Entity added successfully.")
-
+        logging.info(f"add_row_to_storage_table:Entity added successfully.")
     except ResourceExistsError:
-        print(f"The entity with PartitionKey '{entity['PartitionKey']}' and RowKey '{entity['RowKey']}' already exists.")
+        logging.info(f"add_row_to_storage_table:The entity with PartitionKey '{entity['PartitionKey']}' and RowKey '{entity['RowKey']}' already exists.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.info(f"add_row_to_storage_table:An error occurred: {e}")
 
 
 #  Function checks if this is a duplicate request for split operation 
