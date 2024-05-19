@@ -29,6 +29,7 @@ driver= '{ODBC Driver 18 for SQL Server}'
 
 #  Function adding new entity to azure storage table 
 def add_row_to_storage_table(table_name, entity):
+    logging.info(f"starting add_row_to_storage_table function : table name: {table_name}, entity: {entity}")
     """
     Adds a new row to an Azure Storage Table.
 
