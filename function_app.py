@@ -99,32 +99,6 @@ def update_case_generic(caseid,field,value,field2,value2):
     except Exception as e:
         logging.error(f"Error update case: {str(e)}")
         return False    
-
-# Insert files into table "documents"
-def insert_documents(caseid,filename,status,path,url):
-    try:
-        # Establish a connection to the Azure SQL database
-        conn = pyodbc.connect('DRIVER='+driver+';SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
-        cursor = conn.cursor()
-
-        # Insert new doc data into the 'documents' table
-        cursor.execute(f"INSERT INTO documents (caseid, fileName, status, path, url) VALUES (?, ?, ?, ?, ?)", (caseid, filename, status, path,url))
-
-        conn.commit()
-
-        # Get the ID of the last inserted row
-        cursor.execute("SELECT @@IDENTITY AS 'Identity';")
-        doc_id = cursor.fetchone()[0]
-
-        # Close connections
-        cursor.close()
-        conn.close()
-        
-        logging.info(f"insert New Documnets successfully, documents id is:{doc_id} ,caseid is:{caseid}")
-        return doc_id
-    except Exception as e:
-        logging.error(f"Error update case: {str(e)}")
-        return 0     
     
 #Create event on azure service bus 
 def create_servicebus_event(queue_name, event_data):
@@ -204,10 +178,7 @@ def split_pdf_pages(caseid,file_name):
                 'url' :blob_client.url,
              }
             add_row_to_storage_table("documents",entity)
-            #insert data into sql server - need to delete 
-            doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
             #preparing data for service bus 
-            doc_id_int = int(doc_id)
             lastpage = i+1
             data = { 
                 "caseid" : caseid, 
