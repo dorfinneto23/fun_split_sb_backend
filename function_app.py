@@ -8,11 +8,13 @@ import json # in order to use json
 import pyodbc #for sql connections 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage # in order to use azure service bus 
 import uuid #using for creating unique name to files 
+from azure.data.tables import TableServiceClient, TableClient # in order to use azure storage table  
+from azure.core.exceptions import ResourceExistsError # in order to use azure storage table   
 
 
-# Azure Blob Storage connection string
+# Azure Blob Storage connection string & key 
 connection_string_blob = os.environ.get('BlobStorageConnString')
-
+storageAccountKey = os.environ.get('storageAccountKey')
 #Azure service bus connection string 
 connection_string_servicebus = os.environ.get('servicebusConnectionString')
 
@@ -23,6 +25,39 @@ username = os.environ.get('sql_username')
 password = os.environ.get('sql_password')
 driver= '{ODBC Driver 18 for SQL Server}'
 
+
+
+#  Function adding new entity to azure storage table 
+def add_row_to_storage_table(table_name, entity):
+    """
+    Adds a new row to an Azure Storage Table.
+
+    Parameters:
+    - account_name: str, the name of the Azure Storage account
+    - account_key: str, the key for the Azure Storage account
+    - table_name: str, the name of the table
+    - entity: dict, the entity to add (must contain 'PartitionKey' and 'RowKey')
+    """
+    account_key = storageAccountKey
+    account_name = "medicalanalysis"
+    try:
+        # Create a TableServiceClient
+        table_service_client = TableServiceClient(
+            endpoint=f"https://{account_name}.table.core.windows.net",
+            credential=account_key
+        )
+
+        # Get a TableClient
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Add the entity to the table
+        table_client.create_entity(entity=entity)
+        print("Entity added successfully.")
+
+    except ResourceExistsError:
+        print(f"The entity with PartitionKey '{entity['PartitionKey']}' and RowKey '{entity['RowKey']}' already exists.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 #  Function checks if this is a duplicate request for split operation 

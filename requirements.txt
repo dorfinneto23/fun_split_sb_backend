@@ -8,3 +8,4 @@ PyPDF2
 pyodbc
 azure.servicebus
 uuid
+azure.data.tables
