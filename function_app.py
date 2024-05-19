@@ -194,13 +194,21 @@ def split_pdf_pages(caseid,file_name):
             page_bytes = io.BytesIO()
             writer.write(page_bytes)
             page_bytes.seek(0)
-            newFileName = f"page_{uuid.uuid4().hex}_{i+1}.pdf" 
+            baseFileName = f"page_{uuid.uuid4().hex}_{i+1}"
+            newFileName = f"{baseFileName}.pdf" 
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
+            # preparing data before inserting to azure storage table 
+            entity = {
+                'PartitionKey': caseid,
+                'RowKey': baseFileName
+             }
+            add_row_to_storage_table("documents",entity)
+            #insert data into sql server - need to delete 
             doc_id = insert_documents(caseid,newFileName,1,Destination_path,blob_client.url) #status = 1 split 
+            #preparing data for service bus 
             doc_id_int = int(doc_id)
             lastpage = i+1
-            #preparing data for service bus 
             data = { 
                 "caseid" : caseid, 
                 "filename" :newFileName,
