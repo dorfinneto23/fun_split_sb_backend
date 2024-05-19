@@ -210,6 +210,8 @@ def split_pdf_pages(caseid,file_name):
             doc_id_int = int(doc_id)
             lastpage = i+1
             data = { 
+                "PartitionKey": caseid,
+                "RowKey": baseFileName,
                 "caseid" : caseid, 
                 "filename" :newFileName,
                 "path" :Destination_path,
