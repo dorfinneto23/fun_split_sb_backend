@@ -26,6 +26,26 @@ driver= '{ODBC Driver 18 for SQL Server}'
 
 
 
+#  Function check how many rows in partition of azure storage table
+def count_rows_in_partition( table_name,partition_key):
+   
+    service_client = TableServiceClient.from_connection_string(conn_str=connection_string_blob) 
+    # Get the table client
+    table_client = service_client.get_table_client(table_name=table_name)
+    
+    # Define the filter query to count entities with the specified partition key
+    filter_query = f"PartitionKey eq '{partition_key}'"
+    
+    # Query the entities and count the number of entities
+    entities = table_client.query_entities(query_filter=filter_query)
+    count = sum(1 for _ in entities)  # Sum up the entities
+    if count>0:
+        return count
+    else:
+        return 0
+
+
+
 #  Function adding new entity to azure storage table 
 def add_row_to_storage_table(table_name, entity):
     logging.info(f"starting add_row_to_storage_table function : table name: {table_name}, entity: {entity}")
@@ -231,7 +251,8 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
         split_status = splitResult_dic['status']
         split_pages = splitResult_dic['pages_num']
         lastpage = splitResult_dic['LastPage']
-        if split_status =="succeeded" and lastpage==split_pages:
+        pages_done = count_rows_in_partition("documents",caseid)
+        if split_status =="succeeded" and lastpage==pages_done: # check if this file action is the last one
             #update case status to file split
             update_case_generic(caseid,"status",4,"totalpages",split_pages) 
             
