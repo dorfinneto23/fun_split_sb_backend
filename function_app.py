@@ -100,14 +100,14 @@ def check_duplicate_request(caseid):
 
 
 # Generic Function to update case  in the 'cases' table
-def update_case_generic(caseid,field,value,field2,value2):
+def update_case_generic(caseid,field,value,field2,value2,field3,value3):
     try:
         # Establish a connection to the Azure SQL database
         conn = pyodbc.connect('DRIVER='+driver+';SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
         cursor = conn.cursor()
 
         # Insert new case data into the 'cases' table
-        cursor.execute(f"UPDATE cases SET {field} = ? ,{field2} = ? WHERE id = ?", (value,value2 , caseid))
+        cursor.execute(f"UPDATE cases SET {field} = ? ,{field2} = ? ,{field3} = ? WHERE id = ?", (value,value2 ,value3, caseid))
         conn.commit()
 
         # Close connections
@@ -254,7 +254,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
         pages_done = count_rows_in_partition("documents",caseid)
         if split_status =="succeeded" and lastpage==pages_done: # check if this file action is the last one
             #update case status to file split
-            update_case_generic(caseid,"status",4,"totalpages",split_pages) 
+            update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
             
             logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
         else: 
