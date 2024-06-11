@@ -142,9 +142,9 @@ def create_servicebus_event(queue_name, event_data):
         print("An error occurred:", str(e))
 
 #function split pdf into pages 
-def split_pdf_pages(caseid,file_name):
+def split_pdf_pages(caseid,file_name,start_page ,end_page ):
     try:
-        logging.info(f"split_pdf_pages caseid value is: {caseid}")
+        logging.info(f"split_pdf_pages caseid value is: {caseid},start_page:{start_page} ,end_page:{end_page} ")
         container_name = "medicalanalysis"
         main_folder_name = "cases"
         folder_name="case-"+caseid
@@ -174,15 +174,19 @@ def split_pdf_pages(caseid,file_name):
         logging.info(f"destination_path value is: {baseDestination_path}")
         #initial value 
         lastpage = 0
+        # Ensure start_page and end_page are within bounds
+        start_page = max(0, start_page - 1)  # Convert to zero-based
+        end_page = min(num_pages, end_page)  # Adjust end_page if out of bounds
         # Save each page as a separate file
-        for i, page in enumerate(pdf_reader.pages):
+        for i, page in enumerate(pdf_reader.pages[start_page:end_page]):
             writer = PdfWriter()
             writer.add_page(page)
             # Get the bytes of the PDF page
             page_bytes = io.BytesIO()
             writer.write(page_bytes)
             page_bytes.seek(0)
-            baseFileName = f"page_{uuid.uuid4().hex}_{i+1}"
+            actual_page_number = i + start_page + 1
+            baseFileName = f"page_{uuid.uuid4().hex}_{actual_page_number}"
             newFileName = f"{baseFileName}.pdf" 
             Destination_path=f"{baseDestination_path}/{newFileName}"
             blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
@@ -192,7 +196,7 @@ def split_pdf_pages(caseid,file_name):
                 'RowKey': baseFileName,
                 'caseid':caseid,
                 'fileName' :newFileName,
-                'pageNumber' :i+1,
+                'pageNumber' :actual_page_number,
                 'status' :1,
                 'path' :Destination_path,
                 'url' :blob_client.url,
@@ -206,7 +210,7 @@ def split_pdf_pages(caseid,file_name):
                 "path" :Destination_path,
                 "url" :blob_client.url,
                 "docid" :baseFileName,
-                "pagenumber" :i+1,
+                "pagenumber" :actual_page_number,
                 "pages_num" :num_pages
             } 
             json_data = json.dumps(data)
@@ -246,7 +250,9 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     duplicateStatus =  check_duplicate_request(caseid)
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
     if duplicateStatus==False  :
-        splitResult = split_pdf_pages(caseid,file_name)
+        start_page=1
+        end_page =50
+        splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
         splitResult_dic = json.loads(splitResult)
         split_status = splitResult_dic['status']
         split_pages = splitResult_dic['pages_num']
