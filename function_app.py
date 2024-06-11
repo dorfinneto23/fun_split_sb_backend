@@ -49,15 +49,7 @@ def count_rows_in_partition( table_name,partition_key):
 #  Function adding new entity to azure storage table 
 def add_row_to_storage_table(table_name, entity):
     logging.info(f"starting add_row_to_storage_table function : table name: {table_name}, entity: {entity}")
-    """
-    Adds a new row to an Azure Storage Table.
 
-    Parameters:
-    - account_name: str, the name of the Azure Storage account
-    - account_key: str, the key for the Azure Storage account
-    - table_name: str, the name of the table
-    - entity: dict, the entity to add (must contain 'PartitionKey' and 'RowKey')
-    """
     try:
         # Create a TableServiceClient using the connection string
         table_service_client = TableServiceClient.from_connection_string(conn_str=connection_string_blob)
@@ -117,7 +109,7 @@ def create_servicebus_event(queue_name, event_data):
         print("An error occurred:", str(e))
 
 #function split pdf into pages 
-def split_pdf_pages(caseid,file_name,start_page ,end_page ):
+def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num ):
     try:
         logging.info(f"split_pdf_pages caseid value is: {caseid},start_page:{start_page} ,end_page:{end_page} ")
         container_name = "medicalanalysis"
@@ -175,6 +167,7 @@ def split_pdf_pages(caseid,file_name,start_page ,end_page ):
                 'status' :1,
                 'path' :Destination_path,
                 'url' :blob_client.url,
+                'bach_num' :bach_num
              }
             add_row_to_storage_table("documents",entity)
             #preparing data for service bus 
@@ -186,7 +179,8 @@ def split_pdf_pages(caseid,file_name,start_page ,end_page ):
                 "url" :blob_client.url,
                 "docid" :baseFileName,
                 "pagenumber" :actual_page_number,
-                "pages_num" :num_pages
+                "pages_num" :num_pages,
+                "bach_num" :bach_num
             } 
             json_data = json.dumps(data)
             create_servicebus_event("ocr",json_data)
@@ -224,15 +218,15 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     file_name = message_data_dict['filename']
     start_page = message_data_dict['start_page']
     end_page = message_data_dict['end_page']
+    bach_num = message_data_dict['bach_num']
     start_page=start_page
     end_page =end_page
-    splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
+    splitResult = split_pdf_pages(caseid,file_name,start_page,end_page,bach_num)
     splitResult_dic = json.loads(splitResult)
     split_status = splitResult_dic['status']
     split_pages = splitResult_dic['pages_num']
-    lastpage = splitResult_dic['LastPage']
     pages_done = count_rows_in_partition("documents",caseid)
-    if split_status =="succeeded" and lastpage==pages_done: # check if this file action is the last one
+    if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
         #update case status to file split
         update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
         
