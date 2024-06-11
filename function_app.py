@@ -249,7 +249,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     file_name = message_data_dict['filename']
     start_page = message_data_dict['start_page']
     end_page = message_data_dict['end_page']
-    duplicateStatus =  check_duplicate_request(caseid)
+    #duplicateStatus =  check_duplicate_request(caseid)
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
     #if duplicateStatus==False  :
     start_page=start_page
