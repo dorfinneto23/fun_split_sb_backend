@@ -251,23 +251,23 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     end_page = message_data_dict['end_page']
     duplicateStatus =  check_duplicate_request(caseid)
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
-    if duplicateStatus==False  :
-        start_page=start_page
-        end_page =end_page
-        splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
-        splitResult_dic = json.loads(splitResult)
-        split_status = splitResult_dic['status']
-        split_pages = splitResult_dic['pages_num']
-        lastpage = splitResult_dic['LastPage']
-        pages_done = count_rows_in_partition("documents",caseid)
-        if split_status =="succeeded" and lastpage==pages_done: # check if this file action is the last one
-            #update case status to file split
-            update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
-            
-            logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
-        else: 
-            logging.info(f"split status is: {split_status}")
-    else:
-        logging.info(f"duplicate Status is True - means the process already made")
+    #if duplicateStatus==False  :
+    start_page=start_page
+    end_page =end_page
+    splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
+    splitResult_dic = json.loads(splitResult)
+    split_status = splitResult_dic['status']
+    split_pages = splitResult_dic['pages_num']
+    lastpage = splitResult_dic['LastPage']
+    pages_done = count_rows_in_partition("documents",caseid)
+    if split_status =="succeeded" and lastpage==pages_done: # check if this file action is the last one
+        #update case status to file split
+        update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
+        
+        logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
+    else: 
+        logging.info(f"split status is: {split_status}")
+    #else:
+    #    logging.info(f"duplicate Status is True - means the process already made")
 
 
