@@ -247,11 +247,13 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     message_data_dict = json.loads(message_data)
     caseid = message_data_dict['caseid']
     file_name = message_data_dict['filename']
+    start_page = message_data_dict['start_page']
+    end_page = message_data_dict['end_page']
     duplicateStatus =  check_duplicate_request(caseid)
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
     if duplicateStatus==False  :
-        start_page=1
-        end_page =5
+        start_page=start_page
+        end_page =end_page
         splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
         splitResult_dic = json.loads(splitResult)
         split_status = splitResult_dic['status']
