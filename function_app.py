@@ -251,7 +251,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
     logging.info(f"duplicateStatus check is : {duplicateStatus}")
     if duplicateStatus==False  :
         start_page=1
-        end_page =50
+        end_page =5
         splitResult = split_pdf_pages(caseid,file_name,start_page,end_page)
         splitResult_dic = json.loads(splitResult)
         split_status = splitResult_dic['status']
