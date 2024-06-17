@@ -43,6 +43,25 @@ def count_rows_in_partition( table_name,partition_key):
         return count
     else:
         return 0
+    
+
+ #  Function check how many rows in partition by pagenumber
+def count_rows_by_pagenumber( table_name,partition_key,pageNumber):
+   
+    service_client = TableServiceClient.from_connection_string(conn_str=connection_string_blob) 
+    # Get the table client
+    table_client = service_client.get_table_client(table_name=table_name)
+    
+    # Define the filter query to count entities with the specified partition key
+    filter_query = f"PartitionKey eq '{partition_key}' and pageNumber eq {pageNumber}"
+    
+    # Query the entities and count the number of entities
+    entities = table_client.query_entities(query_filter=filter_query)
+    count = sum(1 for _ in entities)  # Sum up the entities
+    if count>0:
+        return count
+    else:
+        return 0   
 
 
 
@@ -153,38 +172,43 @@ def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num ):
             writer.write(page_bytes)
             page_bytes.seek(0)
             actual_page_number = i + start_page + 1
-            baseFileName = f"page_{uuid.uuid4().hex}_{actual_page_number}"
-            newFileName = f"{baseFileName}.pdf" 
-            Destination_path=f"{baseDestination_path}/{newFileName}"
-            blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
-            # preparing data before inserting to azure storage table 
-            entity = {
-                'PartitionKey': caseid,
-                'RowKey': baseFileName,
-                'caseid':caseid,
-                'fileName' :newFileName,
-                'pageNumber' :actual_page_number,
-                'status' :1,
-                'path' :Destination_path,
-                'url' :blob_client.url,
-                'bach_num' :bach_num
-             }
-            add_row_to_storage_table("documents",entity)
-            #preparing data for service bus 
-            lastpage = i+1
-            data = { 
-                "caseid" : caseid, 
-                "filename" :newFileName,
-                "path" :Destination_path,
-                "url" :blob_client.url,
-                "docid" :baseFileName,
-                "pagenumber" :actual_page_number,
-                "pages_num" :num_pages,
-                "bach_num" :bach_num
-            } 
-            json_data = json.dumps(data)
-            create_servicebus_event("ocr",json_data)
-            logging.info(f"split number {i} sucess, data is : {json_data}")
+            duplicateCheck = count_rows_by_pagenumber("documents",caseid,actual_page_number)
+            logging.info(f"duplicateCheck: {duplicateCheck}")
+            if duplicateCheck==0:
+                baseFileName = f"page_{uuid.uuid4().hex}_{actual_page_number}"
+                newFileName = f"{baseFileName}.pdf" 
+                Destination_path=f"{baseDestination_path}/{newFileName}"
+                blob_client = container_client.upload_blob(name=Destination_path, data=page_bytes.read())
+                # preparing data before inserting to azure storage table 
+                entity = {
+                    'PartitionKey': caseid,
+                    'RowKey': baseFileName,
+                    'caseid':caseid,
+                    'fileName' :newFileName,
+                    'pageNumber' :actual_page_number,
+                    'status' :1,
+                    'path' :Destination_path,
+                    'url' :blob_client.url,
+                    'bach_num' :bach_num
+                }
+                add_row_to_storage_table("documents",entity)
+                #preparing data for service bus 
+                lastpage = i+1
+                data = { 
+                    "caseid" : caseid, 
+                    "filename" :newFileName,
+                    "path" :Destination_path,
+                    "url" :blob_client.url,
+                    "docid" :baseFileName,
+                    "pagenumber" :actual_page_number,
+                    "pages_num" :num_pages,
+                    "bach_num" :bach_num
+                } 
+                json_data = json.dumps(data)
+                create_servicebus_event("ocr",json_data)
+                logging.info(f"split number {i} sucess, data is : {json_data}")
+            else: 
+                logging.info(f"is duplicate page, duplicateCheck value is : {duplicateCheck}")
         logging.info(f"split_pdf_pages process: succeeded")
         data = { 
             "status" : "succeeded", 
@@ -211,28 +235,31 @@ app = func.FunctionApp()
 @app.service_bus_queue_trigger(arg_name="azservicebus", queue_name="split",
                                connection="medicalanalysis_SERVICEBUS") 
 def sb_split_process(azservicebus: func.ServiceBusMessage):
-    message_data = azservicebus.get_body().decode('utf-8')
-    logging.info('Received messageesds: %s', message_data)
-    message_data_dict = json.loads(message_data)
-    caseid = message_data_dict['caseid']
-    file_name = message_data_dict['filename']
-    start_page = message_data_dict['start_page']
-    end_page = message_data_dict['end_page']
-    bach_num = message_data_dict['bach_num']
-    start_page=start_page
-    end_page =end_page
-    splitResult = split_pdf_pages(caseid,file_name,start_page,end_page,bach_num)
-    splitResult_dic = json.loads(splitResult)
-    split_status = splitResult_dic['status']
-    split_pages = splitResult_dic['pages_num']
-    pages_done = count_rows_in_partition("documents",caseid)
-    if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
-        #update case status to file split
-        update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
-        
-        logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
-    else: 
-        logging.info(f"split status is: {split_status}")
+   try:
+        message_data = azservicebus.get_body().decode('utf-8')
+        logging.info('Received messageesds: %s', message_data)
+        message_data_dict = json.loads(message_data)
+        caseid = message_data_dict['caseid']
+        file_name = message_data_dict['filename']
+        start_page = message_data_dict['start_page']
+        end_page = message_data_dict['end_page']
+        bach_num = message_data_dict['bach_num']
+        start_page=start_page
+        end_page =end_page
+        splitResult = split_pdf_pages(caseid,file_name,start_page,end_page,bach_num)
+        splitResult_dic = json.loads(splitResult)
+        split_status = splitResult_dic['status']
+        split_pages = splitResult_dic['pages_num']
+        pages_done = count_rows_in_partition("documents",caseid)
+        if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
+            #update case status to file split
+            update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
+            
+            logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
+        else: 
+            logging.info(f"split status is: {split_status}")
+   except Exception as e:
+       logging.error(f"error : {str(e)}")
 
 
 
