@@ -8,8 +8,8 @@ import json # in order to use json
 import pyodbc #for sql connections 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage # in order to use azure service bus 
 import uuid #using for creating unique name to files 
-from azure.data.tables import TableServiceClient, TableClient # in order to use azure storage table  
-from azure.core.exceptions import ResourceExistsError # in order to use azure storage table   
+from azure.data.tables import TableServiceClient, TableClient, UpdateMode # in order to use azure storage table  
+from azure.core.exceptions import ResourceExistsError ,ResourceNotFoundError# in order to use azure storage table   
 
 
 # Azure Blob Storage connection string & key 
@@ -24,6 +24,35 @@ username = os.environ.get('sql_username')
 password = os.environ.get('sql_password')
 driver= '{ODBC Driver 18 for SQL Server}'
 
+
+
+
+# Update field on specific entity/ row in storage table 
+def update_entity_field(table_name, partition_key, row_key, field_name, new_value,field_name2, new_value2,field_name3, new_value3):
+
+    try:
+        # Create a TableServiceClient using the connection string
+        table_service_client = TableServiceClient.from_connection_string(conn_str=connection_string_blob)
+
+        # Get a TableClient
+        table_client = table_service_client.get_table_client(table_name)
+
+        # Retrieve the entity
+        entity = table_client.get_entity(partition_key, row_key)
+
+        # Update the field
+        entity[field_name] = new_value
+        entity[field_name2] = new_value2
+        entity[field_name3] = new_value3
+
+        # Update the entity in the table
+        table_client.update_entity(entity, mode=UpdateMode.REPLACE)
+        logging.info(f"update_entity_field:Entity updated successfully.")
+
+    except ResourceNotFoundError:
+        logging.info(f"The entity with PartitionKey '{partition_key}' and RowKey '{row_key}' was not found.")
+    except Exception as e:
+        logging.info(f"An error occurred: {e}")
 
 
 #  Function check how many rows in partition of azure storage table
@@ -254,6 +283,7 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
         if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
             #update case status to file split
             update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
+            update_entity_field("cases", caseid, "1", "status", 4,"totalpages", split_pages,"splitProcess",1)
             
             logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
         else: 
