@@ -5,7 +5,6 @@ from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient # 
 from PyPDF2 import PdfReader,PdfWriter  # in order to read and write  pdf file 
 import io # in order to download pdf to memory and write into memory without disk permission needed 
 import json # in order to use json 
-import pyodbc #for sql connections 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage # in order to use azure service bus 
 import uuid #using for creating unique name to files 
 from azure.data.tables import TableServiceClient, TableClient, UpdateMode # in order to use azure storage table  
@@ -17,12 +16,6 @@ connection_string_blob = os.environ.get('BlobStorageConnString')
 #Azure service bus connection string 
 connection_string_servicebus = os.environ.get('servicebusConnectionString')
 
-# Define connection details
-server = 'medicalanalysis-sqlserver.database.windows.net'
-database = 'medicalanalysis'
-username = os.environ.get('sql_username')
-password = os.environ.get('sql_password')
-driver= '{ODBC Driver 18 for SQL Server}'
 
 
 
@@ -112,28 +105,7 @@ def add_row_to_storage_table(table_name, entity):
         logging.info(f"add_row_to_storage_table:The entity with PartitionKey '{entity['PartitionKey']}' and RowKey '{entity['RowKey']}' already exists.")
     except Exception as e:
         logging.info(f"add_row_to_storage_table:An error occurred: {e}")
-
-
-# Generic Function to update case  in the 'cases' table
-def update_case_generic(caseid,field,value,field2,value2,field3,value3):
-    try:
-        # Establish a connection to the Azure SQL database
-        conn = pyodbc.connect('DRIVER='+driver+';SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
-        cursor = conn.cursor()
-
-        # Insert new case data into the 'cases' table
-        cursor.execute(f"UPDATE cases SET {field} = ? ,{field2} = ? ,{field3} = ? WHERE id = ?", (value,value2 ,value3, caseid))
-        conn.commit()
-
-        # Close connections
-        cursor.close()
-        conn.close()
-        
-        logging.info(f"case {caseid} updated field name: {field} , value: {value}")
-        return True
-    except Exception as e:
-        logging.error(f"Error update case: {str(e)}")
-        return False    
+  
     
 #Create event on azure service bus 
 def create_servicebus_event(queue_name, event_data):
@@ -282,7 +254,6 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
         pages_done = count_rows_in_partition("documents",caseid)
         if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
             #update case status to file split
-            update_case_generic(caseid,"status",4,"totalpages",split_pages,"splitProcess",1) 
             update_entity_field("cases", caseid, "1", "status", 4,"totalpages", split_pages,"splitProcess",1)
             
             logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
