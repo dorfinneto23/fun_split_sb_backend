@@ -21,7 +21,7 @@ connection_string_servicebus = os.environ.get('servicebusConnectionString')
 
 
 # Update field on specific entity/ row in storage table 
-def update_entity_field(table_name, partition_key, row_key, field_name, new_value,field_name2, new_value2,field_name3, new_value3):
+def update_entity_field(table_name, partition_key, row_key, field_name, new_value,field_name2, new_value2):
 
     try:
         # Create a TableServiceClient using the connection string
@@ -36,7 +36,6 @@ def update_entity_field(table_name, partition_key, row_key, field_name, new_valu
         # Update the field
         entity[field_name] = new_value
         entity[field_name2] = new_value2
-        entity[field_name3] = new_value3
 
         # Update the entity in the table
         table_client.update_entity(entity, mode=UpdateMode.REPLACE)
@@ -129,7 +128,7 @@ def create_servicebus_event(queue_name, event_data):
         print("An error occurred:", str(e))
 
 #function split pdf into pages 
-def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num ):
+def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num,total_pages ):
     try:
         logging.info(f"split_pdf_pages caseid value is: {caseid},start_page:{start_page} ,end_page:{end_page} ")
         container_name = "medicalanalysis"
@@ -202,7 +201,7 @@ def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num ):
                     "url" :blob_client.url,
                     "docid" :baseFileName,
                     "pagenumber" :actual_page_number,
-                    "pages_num" :num_pages,
+                    "pages_num" :total_pages,
                     "bach_num" :bach_num
                 } 
                 json_data = json.dumps(data)
@@ -213,16 +212,14 @@ def split_pdf_pages(caseid,file_name,start_page ,end_page,bach_num ):
         logging.info(f"split_pdf_pages process: succeeded")
         data = { 
             "status" : "succeeded", 
-            "pages_num" : num_pages,
             "LastPage" :lastpage,
-            "Description" : f"split_pdf_pages process: succeeded ,Total Pages:{num_pages}" 
+            "Description" : f"split_pdf_pages process: succeeded ,Total Pages:{total_pages}" 
         } 
         json_data = json.dumps(data)
         return json_data
     except Exception as e:
         data = { 
             "status" : "Failure", 
-            "pages_num" : num_pages,
             "LastPage" :lastpage,
             "Description" : str(e)
         } 
@@ -245,18 +242,18 @@ def sb_split_process(azservicebus: func.ServiceBusMessage):
         start_page = message_data_dict['start_page']
         end_page = message_data_dict['end_page']
         bach_num = message_data_dict['bach_num']
+        total_pages = message_data_dict['total_pages']
         start_page=start_page
         end_page =end_page
-        splitResult = split_pdf_pages(caseid,file_name,start_page,end_page,bach_num)
+        splitResult = split_pdf_pages(caseid,file_name,start_page,end_page,bach_num,total_pages)
         splitResult_dic = json.loads(splitResult)
         split_status = splitResult_dic['status']
-        split_pages = splitResult_dic['pages_num']
         pages_done = count_rows_in_partition("documents",caseid)
-        if split_status =="succeeded" and split_pages==pages_done: # check if this file action is the last one
+        if split_status =="succeeded" and total_pages==pages_done: # check if this file action is the last one
             #update case status to file split
-            update_entity_field("cases", caseid, "1", "status", 4,"totalpages", split_pages,"splitProcess",1)
+            update_entity_field("cases", caseid, "1", "status", 4,"splitProcess",1)
             
-            logging.info(f"split status is: {split_status}, Total Pages is: {split_pages}")
+            logging.info(f"split status is: {split_status}, Total Pages is: {total_pages}")
         else: 
             logging.info(f"split status is: {split_status}")
    except Exception as e:
